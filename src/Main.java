@@ -2,6 +2,8 @@ import java.util.*;
 
 public class Main {
     public static final Map<Integer, Integer> sizeToFreq = new HashMap<>();
+    private static final int length = 1000;
+    private static final String letter = "RLRFR";
     public static int countKey = 0;
 
     public static String generateRoute(String letters, int length) {
@@ -13,7 +15,7 @@ public class Main {
         return route.toString();
     }
 
-    public static Map<Integer, Integer> countFreq(String routes) {
+    public static synchronized Map<Integer, Integer> countFreq(String routes) {
         for (int i = 0; i < routes.length(); i++) {
             if (routes.charAt(i) == 'R') {
                 countKey++;
@@ -27,13 +29,11 @@ public class Main {
                 countKey = 0;
             }
         }
-       // System.out.println(sizeToFreq);
         return sizeToFreq;
     }
 
 
     public static void maxCountFreq(Map<Integer, Integer> map) {
-
         Map.Entry<Integer, Integer> maxFreq = map
                 .entrySet()
                 .stream()
@@ -43,9 +43,7 @@ public class Main {
 
         System.out.println("Самое частое количество повторений " + maxFreq.getKey() +
                 " (встретилось " + maxFreq.getValue() + "  раз)");
-
         System.out.println("Другие размеры: ");
-
         for (Map.Entry<Integer, Integer> maxFreq2 : map.entrySet()) {
             if (maxFreq.getKey() == maxFreq2.getKey()) {
                 continue;
@@ -56,34 +54,14 @@ public class Main {
 
 
     public static void main(String[] args) {
-        int length = 1000;
-        String letter = "RLRFR";
         String letters = generateRoute(letter, length);
-
-       // System.out.println(letters);
-        //maxCountFreq(countFreq(s));
 
         for (int i = 0; i < length; i++) {
             new Thread(() -> {
-               synchronized (sizeToFreq) {
-                   countFreq(letters);
-                   sizeToFreq.notify();
-               }
+                countFreq(letters);
             }).start();
         }
 
-        for (int i = 0; i < length; i++) {
-            new Thread(()->{
-                synchronized (sizeToFreq){
-                    try {
-                        sizeToFreq.wait();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                    maxCountFreq(sizeToFreq);
-                }
-
-            }).start();
-        }
+        maxCountFreq(sizeToFreq);
     }
 }
