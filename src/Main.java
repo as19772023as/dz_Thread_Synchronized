@@ -3,20 +3,38 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
     public static final Map<Integer, Integer> sizeToFreq = new HashMap<>();
-    private static final int length = 1000;
-    private static final String letter = "RLRFR";
-    public static int countKey = 0;
+    private static int length = 100;
+    private static  String letter = "RLRFR";
+    private static int AMOUNT_OF_THREAD = 1000;
+
 
     public static void main(String[] args) throws InterruptedException {
-        String letters = generateRoute(letter, length);
-        for (int i = 0; i < length; i++) {
-            new Thread(() -> {
-                countFreq(letters);
-            }).start();
+        List<Thread>threadList = new ArrayList<>();
+
+        Thread printer = new Thread(()->{
+            while (!Thread.interrupted()){
+                synchronized (sizeToFreq){
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                    printLeader();
+                }
+            }
+        });
+        printer.start();
+
+        for (int i = 0; i < AMOUNT_OF_THREAD; i++) {
+            threadList.add(getThread());
+        }
+        for (Thread thread : threadList) {
+            thread.start();
+            thread.join();
         }
 
-        Thread.sleep(300);
-        maxCountFreq(sizeToFreq);
+        printer.interrupt();
+
     }
 
     public static String generateRoute(String letters, int length) {
@@ -28,38 +46,29 @@ public class Main {
         return route.toString();
     }
 
-    public static Map<Integer, Integer> countFreq(String routes) {
-        for (int i = 0; i < routes.length(); i++) {
-            if (routes.charAt(i) == 'R') {
-                countKey++;
-            } else if (countKey > 0) {
-                synchronized (sizeToFreq) {
-                    sizeToFreq.put(countKey, sizeToFreq.getOrDefault(countKey, 0) + 1);
-                }
-                countKey = 0;
-            }
-        }
-        return sizeToFreq;
+    public static void printLeader(){
+        Map.Entry<Integer, Integer> max = sizeToFreq.entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .get();
+        System.out.println("Самое частое количество повторений " + max.getKey() +
+                " (встретилось " + max.getValue() + "  раз)");
+
     }
 
+    public  static Thread getThread(){
+        return new Thread(()->{
+            String route = generateRoute(letter, length );
+            int frequency = (int) route.chars().filter(ch->ch == 'R').count();
 
-    public static void maxCountFreq(Map<Integer, Integer> map) {
-        Map.Entry<Integer, Integer> maxFreq = map
-                .entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByKey(Comparator.reverseOrder()))
-                .findFirst()
-                .get();
-        System.out.println("Самое частое количество повторений " + maxFreq.getKey() +
-                " (встретилось " + maxFreq.getValue() + "  раз)");
-
-        System.out.println("Другие размеры: ");
-
-        for (Map.Entry<Integer, Integer> maxFreq2 : map.entrySet()) {
-            if (maxFreq.getKey() == maxFreq2.getKey()) {
-                continue;
+            synchronized (sizeToFreq){
+                if(sizeToFreq.containsKey(frequency)){
+                    sizeToFreq.put(frequency, sizeToFreq.get(frequency) + 1);
+                } else {
+                    sizeToFreq.put(frequency, 1);
+                }
+                sizeToFreq.notify();
             }
-            System.out.println("- " + maxFreq2.getKey() + " ( " + maxFreq2.getValue() + "  раз)");
-        }
+        });
     }
 }
